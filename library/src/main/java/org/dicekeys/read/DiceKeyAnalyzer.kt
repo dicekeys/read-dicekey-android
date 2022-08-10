@@ -8,7 +8,7 @@ import androidx.camera.core.ImageProxy
 import java.nio.ByteBuffer
 import java.lang.Exception
 
-class DiceKeyAnalyzer(val activity: Activity) : ImageAnalysis.Analyzer {
+class DiceKeyAnalyzer(val activity: Activity, val isSingleDiceKeyScan: Boolean = true) : ImageAnalysis.Analyzer {
 
     var onActionOverlay = fun(overlay: Bitmap): Unit = null!!
     var onActionDone = fun(diceKeyAsJson: String): Unit = null!!
@@ -23,24 +23,11 @@ class DiceKeyAnalyzer(val activity: Activity) : ImageAnalysis.Analyzer {
             //  causing a seg fault.  we don't like those!)
             return
         }
-        var imageClosed = false
         try {
-
             val buffer = image.planes[0].buffer
             val width = image.width
             val height = image.height
             val res = reader.processImage(width, height, image.planes[0].rowStride, buffer)
-
-            // https://developer.android.com/jetpack/androidx/releases/camera (alpha 7 release notes)
-            // "Important: The ImageAnalysis Analyzer method implementation must call image.close() on
-            //  received images when finished using them. Otherwise, new images may not be received or
-            //  the camera may stall, depending on back pressure setting. Refer to the reference
-            //  docs for details."
-
-            // We've processed the image, so we can close it before we do anything else
-            // and allow more images to be processed
-            image.close()
-            imageClosed = true
 
 
             var bufferOverlay = ByteBuffer.allocateDirect(4 * width * height)
@@ -56,27 +43,29 @@ class DiceKeyAnalyzer(val activity: Activity) : ImageAnalysis.Analyzer {
                 onActionOverlay(bitmap)
             }
 
-            if(res)
-            {
+            if (res) {
                 val diceKeyAsJson = reader.jsonDiceKeyRead()
-                if (diceKeyAsJson != "null")
-                {
-                    done = true
-                    activity.runOnUiThread{
+                if (diceKeyAsJson != "null") {
+                    done = isSingleDiceKeyScan
+                    activity.runOnUiThread {
                         onActionDone(diceKeyAsJson)
                     }
                 }
             }
 
-        }
-        catch (ex: Exception)
-        {
+        } catch (ex: Exception) {
             Log.e("DiceKeyAnalyzer", ex.message!!)
-            if (!imageClosed) {
-                image.close()
-            }
             throw ex
-        }
+        } finally {
+            // https://developer.android.com/jetpack/androidx/releases/camera (alpha 7 release notes)
+            // "Important: The ImageAnalysis Analyzer method implementation must call image.close() on
+            //  received images when finished using them. Otherwise, new images may not be received or
+            //  the camera may stall, depending on back pressure setting. Refer to the reference
+            //  docs for details."
 
+            // We've processed the image, so we can close it before we do anything else
+            // and allow more images to be processed
+            image.close()
+        }
     }
 }
