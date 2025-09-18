@@ -2,7 +2,7 @@
 buildscript {
     ext.kotlin_version = '1.6.21'
     ext.dokka_version = '0.10.1'
-    ext.seeded_crypto = 'main-SNAPSHOT'
+    ext.seeded_crypto = '0.0.2'
     repositories {
         google()
         mavenCentral()
